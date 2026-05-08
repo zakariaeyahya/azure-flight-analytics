@@ -1,11 +1,7 @@
 import { useMemo } from 'react'
-import dayjs, { Dayjs } from 'dayjs'
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
-import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import {
-  Grid, Typography, MenuItem, TextField, Box, CircularProgress,
-  useTheme, alpha, Chip, Stack,
+  Grid, Typography, MenuItem, Select, FormControl, InputLabel,
+  Box, CircularProgress, useTheme, alpha, Chip, Stack, TextField,
 } from '@mui/material'
 import FlightIcon from '@mui/icons-material/Flight'
 import AirlinesIcon from '@mui/icons-material/Airlines'
@@ -14,7 +10,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff'
 import {
   BarChart, Bar, LineChart, Line, ScatterChart, Scatter,
-  XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Defs, LinearGradient, Stop,
+  XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { DataGrid, GridColDef } from '@mui/x-data-grid'
 import { useCSV } from '../hooks/useCSV'
@@ -142,8 +138,6 @@ export default function Airlines() {
     return prev === 0 ? 0 : ((last - prev) / prev) * 100
   }
 
-  const yearValue: Dayjs | null = filters.year ? dayjs().year(Number(filters.year)) : null
-
   const columns: GridColDef[] = [
     { field: 'carrier_name',      headerName: 'Compagnie',         flex: 2 },
     { field: 'total_flights',     headerName: 'Total vols',        flex: 1, type: 'number', valueFormatter: v => v.value?.toLocaleString() },
@@ -209,21 +203,24 @@ export default function Airlines() {
       >
         <Typography variant="subtitle2" color="text.secondary" sx={{ mr: 1 }}>Filtrer par :</Typography>
 
-        <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <DatePicker
+        <FormControl size="small" sx={{ minWidth: 130 }}>
+          <InputLabel>Année</InputLabel>
+          <Select
             label="Année"
-            views={['year']}
-            openTo="year"
-            minDate={dayjs().year(years[0] ?? 2003)}
-            maxDate={dayjs().year(years[years.length - 1] ?? 2008)}
-            value={yearValue}
-            onChange={(val: Dayjs | null) => setFilter('year', val ? String(val.year()) : '')}
-            slotProps={{
-              textField: { size: 'small', sx: { minWidth: 120 } },
-              field: { clearable: true, onClear: () => setFilter('year', '') },
-            }}
-          />
-        </LocalizationProvider>
+            value={filters.year}
+            onChange={e => setFilter('year', e.target.value)}
+          >
+            <MenuItem value=""><em>Toutes</em></MenuItem>
+            {years.map(y => (
+              <MenuItem key={y} value={y}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main' }} />
+                  {y}
+                </Box>
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
         <TextField
           select label="Compagnie" size="small"
