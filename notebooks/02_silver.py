@@ -1,6 +1,8 @@
 # Databricks notebook source
 
+
 # COMMAND ----------
+
 # MAGIC %md
 # MAGIC # Silver Layer — Nettoyage et enrichissement
 # MAGIC - Cast des types corrects
@@ -21,6 +23,7 @@ log = get_logger("silver")
 log.info("Démarrage transformation Silver")
 
 # COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## 1. Lecture depuis Bronze
 
@@ -34,6 +37,7 @@ log.info("Bronze chargé | vols=%s | airports=%s | carriers=%s",
          f"{df_raw.count():,}", f"{df_airports.count():,}", f"{df_carriers.count():,}")
 
 # COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## 2. Cast des types et nettoyage
 
@@ -75,6 +79,7 @@ if dropped > 0:
     log.warning("Lignes supprimées détectées | count=%d", dropped)
 
 # COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## 3. Colonnes dérivées
 
@@ -105,6 +110,7 @@ df_enriched = (df_clean
 log.info("Colonnes dérivées ajoutées | is_delayed, delay_category, main_delay_cause, flight_date")
 
 # COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## 4. Jointures avec les référentiels
 
@@ -139,6 +145,7 @@ log.info("Jointures OK | silver lignes=%s | colonnes=%d",
          f"{df_silver.count():,}", len(df_silver.columns))
 
 # COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## 5. Écriture Silver
 

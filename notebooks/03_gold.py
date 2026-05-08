@@ -1,6 +1,8 @@
 # Databricks notebook source
 
+
 # COMMAND ----------
+
 # MAGIC %md
 # MAGIC # Gold Layer — KPIs agrégés pour Power BI
 # MAGIC Tables pré-agrégées optimisées pour la visualisation.
@@ -21,6 +23,7 @@ df_silver = spark.read.format("delta").load(f"{BASE}/silver/flights")
 log.info("Silver chargé | lignes=%s", f"{df_silver.count():,}")
 
 # COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Gold 1 — Retards par compagnie aérienne (par année)
 # MAGIC > **Question business** : Quelle compagnie est la plus ponctuelle ?
@@ -45,6 +48,7 @@ gold_carrier.write.format("delta").mode("overwrite").save(f"{BASE}/gold/carrier_
 log.info("Écrit | gold/carrier_performance | lignes=%s", f"{gold_carrier.count():,}")
 
 # COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Gold 2 — Retards par aéroport d'origine (par année)
 # MAGIC > **Question business** : Quels aéroports génèrent le plus de retards ?
@@ -70,6 +74,7 @@ gold_airport.write.format("delta").mode("overwrite").save(f"{BASE}/gold/airport_
 log.info("Écrit | gold/airport_performance | lignes=%s", f"{gold_airport.count():,}")
 
 # COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Gold 3 — Tendance mensuelle des retards (par année/mois)
 # MAGIC > **Question business** : Y a-t-il des saisons avec plus de retards ?
@@ -95,6 +100,7 @@ gold_monthly.write.format("delta").mode("overwrite").save(f"{BASE}/gold/monthly_
 log.info("Écrit | gold/monthly_trends | lignes=%s", f"{gold_monthly.count():,}")
 
 # COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Gold 4 — Causes de retard par compagnie
 # MAGIC > **Question business** : Les retards sont-ils dus à la météo, au transporteur, ou au NAS ?
@@ -119,6 +125,7 @@ gold_causes.write.format("delta").mode("overwrite").save(f"{BASE}/gold/delay_cau
 log.info("Écrit | gold/delay_causes | lignes=%s", f"{gold_causes.count():,}")
 
 # COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Gold 5 — Routes les plus fréquentées
 # MAGIC > **Question business** : Quelles routes ont le plus de trafic et de retards ?
@@ -144,6 +151,7 @@ gold_routes.write.format("delta").mode("overwrite").save(f"{BASE}/gold/top_route
 log.info("Écrit | gold/top_routes | lignes=%s", f"{gold_routes.count():,}")
 
 # COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Résumé final
 
