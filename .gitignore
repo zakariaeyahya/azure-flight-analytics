@@ -1,1 +1,12 @@
+# Secrets
 .env
+
+# Données source — trop volumineuses pour git (>100MB par fichier)
+data/
+gold_csv/
+gold_export/
+
+# Dashboard
+dashboard/.env
+dashboard/node_modules/
+dashboard/dist/
