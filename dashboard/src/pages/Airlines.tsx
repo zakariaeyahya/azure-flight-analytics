@@ -1,13 +1,20 @@
 import { useMemo } from 'react'
-import { Grid, Typography, MenuItem, TextField, Box, CircularProgress, useTheme } from '@mui/material'
+import dayjs, { Dayjs } from 'dayjs'
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
+import {
+  Grid, Typography, MenuItem, TextField, Box, CircularProgress,
+  useTheme, alpha, Chip, Stack,
+} from '@mui/material'
 import FlightIcon from '@mui/icons-material/Flight'
 import AirlinesIcon from '@mui/icons-material/Airlines'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
+import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff'
 import {
   BarChart, Bar, LineChart, Line, ScatterChart, Scatter,
-  XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer,
+  XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Defs, LinearGradient, Stop,
 } from 'recharts'
 import { DataGrid, GridColDef } from '@mui/x-data-grid'
 import { useCSV } from '../hooks/useCSV'
@@ -19,12 +26,11 @@ import { AppWidgetSummary } from '../components/AppWidgetSummary'
 
 const MONTH_LABELS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
 
-// Style global inspiré de Minimal UI use-chart.ts
 function useChartStyle() {
   const theme = useTheme()
   return {
     grid:    { strokeDasharray: '3 3', stroke: theme.palette.divider, vertical: false },
-    axis:    { tick: { fontSize: 11, fill: theme.palette.text.disabled }, axisLine: false, tickLine: false },
+    axis:    { tick: { fontSize: 11, fill: theme.palette.text.disabled }, axisLine: false as const, tickLine: false as const },
     tooltip: {
       contentStyle: {
         border: `1px solid ${theme.palette.divider}`,
@@ -33,21 +39,38 @@ function useChartStyle() {
         fontSize: 12,
       },
     },
-    colors:  [
-      theme.palette.primary.main,
-      '#FFAB00',   // warning
-      '#00B8D9',   // info
-      '#FF5630',   // error
-      '#22C55E',   // success
-    ],
+    colors: ['#00A76F', '#FF5630', '#FFAB00', '#00B8D9', '#8E33FF'],
   }
+}
+
+// Tooltip personnalisé artistique
+function CustomTooltip({ active, payload, label, unit }: any) {
+  if (!active || !payload?.length) return null
+  return (
+    <Box sx={{
+      bgcolor: 'white', p: 1.5,
+      border: '1px solid #DFE3E8',
+      borderRadius: 2,
+      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+      minWidth: 140,
+    }}>
+      <Typography variant="caption" fontWeight={700} color="text.secondary">{label}</Typography>
+      {payload.map((p: any) => (
+        <Box key={p.dataKey} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: p.fill || p.stroke }} />
+          <Typography variant="caption">{p.name} : <strong>{p.value}{unit}</strong></Typography>
+        </Box>
+      ))}
+    </Box>
+  )
 }
 
 export default function Airlines() {
   const { data: carrierData, loading: l1 } = useCSV<CarrierPerformance>(dataUrl('carrier_performance'))
-  const { data: monthlyData, loading: l2 } = useCSV<MonthlyTrend>(dataUrl('monthly_trends'))
+  const { data: monthlyData, loading: l2 }  = useCSV<MonthlyTrend>(dataUrl('monthly_trends'))
   const { filters, setFilter } = useFilters()
   const cs = useChartStyle()
+  const theme = useTheme()
 
   const loading = l1 || l2
 
@@ -81,11 +104,8 @@ export default function Airlines() {
     })).sort((a, b) => b.delay_rate_pct - a.delay_rate_pct)
   }, [filtered])
 
-  // Retard moyen par mois (toutes années filtrées confondues)
   const byMonth = useMemo(() => {
-    const filteredMonthly = monthlyData.filter(d =>
-      !filters.year || d.Year === Number(filters.year)
-    )
+    const filteredMonthly = monthlyData.filter(d => !filters.year || d.Year === Number(filters.year))
     const map = new Map<number, { sum: number; count: number }>()
     filteredMonthly.forEach(d => {
       const prev = map.get(d.Month) ?? { sum: 0, count: 0 }
@@ -98,7 +118,6 @@ export default function Airlines() {
     })
   }, [monthlyData, filters.year])
 
-  // KPIs par année
   const kpiYears = useMemo(() => [...new Set(carrierData.map(d => d.Year))].sort(), [carrierData])
   const byYear = useMemo(() =>
     kpiYears.map(y => {
@@ -123,6 +142,8 @@ export default function Airlines() {
     return prev === 0 ? 0 : ((last - prev) / prev) * 100
   }
 
+  const yearValue: Dayjs | null = filters.year ? dayjs().year(Number(filters.year)) : null
+
   const columns: GridColDef[] = [
     { field: 'carrier_name',      headerName: 'Compagnie',         flex: 2 },
     { field: 'total_flights',     headerName: 'Total vols',        flex: 1, type: 'number', valueFormatter: v => v.value?.toLocaleString() },
@@ -131,141 +152,211 @@ export default function Airlines() {
     { field: 'avg_arr_delay_min', headerName: 'Retard moy. (min)', flex: 1, type: 'number' },
   ]
 
-  if (loading) return <Box display="flex" justifyContent="center" mt={10}><CircularProgress /></Box>
+  if (loading) return (
+    <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" minHeight="60vh" gap={2}>
+      <FlightTakeoffIcon sx={{ fontSize: 48, color: 'primary.main', animation: 'pulse 1.5s infinite' }} />
+      <CircularProgress size={32} />
+      <Typography variant="body2" color="text.secondary">Chargement des données…</Typography>
+    </Box>
+  )
 
   return (
     <Box>
-      <Typography variant="h5" fontWeight={700} mb={1}>Performance des compagnies</Typography>
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        Ponctualité et retards par compagnie aérienne
-      </Typography>
+      {/* ── Hero banner ── */}
+      <Box
+        sx={{
+          mb: 4, p: 3, borderRadius: 3, position: 'relative', overflow: 'hidden',
+          background: `linear-gradient(135deg, #0d1b2a 0%, #1565c0 60%, #1e3a5f 100%)`,
+          color: 'white',
+        }}
+      >
+        {/* Cercles décoratifs */}
+        <Box sx={{ position: 'absolute', top: -40, right: -40, width: 200, height: 200, borderRadius: '50%', bgcolor: alpha('#4fc3f7', 0.12), pointerEvents: 'none' }} />
+        <Box sx={{ position: 'absolute', bottom: -60, right: 80,  width: 260, height: 260, borderRadius: '50%', bgcolor: alpha('#4fc3f7', 0.07), pointerEvents: 'none' }} />
 
-      <Box display="flex" gap={2} mb={3}>
-        <TextField select label="Année" size="small" value={filters.year} onChange={e => setFilter('year', e.target.value)} sx={{ minWidth: 120 }}>
-          <MenuItem value="">Toutes</MenuItem>
-          {years.map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
-        </TextField>
-        <TextField select label="Compagnie" size="small" value={filters.carrier} onChange={e => setFilter('carrier', e.target.value)} sx={{ minWidth: 200 }}>
-          <MenuItem value="">Toutes</MenuItem>
-          {carriers.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-        </TextField>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1.5 }}>
+          <Box sx={{ bgcolor: alpha('#4fc3f7', 0.2), borderRadius: 2, p: 1.2, display: 'flex' }}>
+            <FlightTakeoffIcon sx={{ fontSize: 32, color: '#4fc3f7' }} />
+          </Box>
+          <Box>
+            <Typography variant="h5" fontWeight={800} letterSpacing={-0.5}>
+              Performance des compagnies
+            </Typography>
+            <Typography variant="body2" sx={{ color: alpha('#fff', 0.65) }}>
+              Analyse des retards et de la ponctualité — vols domestiques USA
+            </Typography>
+          </Box>
+        </Box>
+
+        <Stack direction="row" spacing={1} flexWrap="wrap">
+          <Chip label={`${kpiYears[0]} – ${kpiYears[kpiYears.length - 1]}`} size="small"
+            sx={{ bgcolor: alpha('#fff', 0.1), color: '#90caf9', fontWeight: 600 }} />
+          <Chip label={`${carriers.length} compagnies`} size="small"
+            sx={{ bgcolor: alpha('#fff', 0.1), color: '#90caf9', fontWeight: 600 }} />
+          <Chip label={`~30M vols`} size="small"
+            sx={{ bgcolor: alpha('#fff', 0.1), color: '#90caf9', fontWeight: 600 }} />
+        </Stack>
       </Box>
 
-      {/* KPI widgets style Minimal UI */}
+      {/* ── Filtres ── */}
+      <Box
+        sx={{
+          mb: 3, p: 2, borderRadius: 2,
+          bgcolor: 'white',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+          display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center',
+        }}
+      >
+        <Typography variant="subtitle2" color="text.secondary" sx={{ mr: 1 }}>Filtrer par :</Typography>
+
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DatePicker
+            label="Année"
+            views={['year']}
+            openTo="year"
+            minDate={dayjs().year(years[0] ?? 2003)}
+            maxDate={dayjs().year(years[years.length - 1] ?? 2008)}
+            value={yearValue}
+            onChange={(val: Dayjs | null) => setFilter('year', val ? String(val.year()) : '')}
+            slotProps={{
+              textField: { size: 'small', sx: { minWidth: 120 } },
+              field: { clearable: true, onClear: () => setFilter('year', '') },
+            }}
+          />
+        </LocalizationProvider>
+
+        <TextField
+          select label="Compagnie" size="small"
+          value={filters.carrier}
+          onChange={e => setFilter('carrier', e.target.value)}
+          sx={{ minWidth: 220 }}
+        >
+          <MenuItem value="">Toutes les compagnies</MenuItem>
+          {carriers.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+        </TextField>
+
+        {(filters.year || filters.carrier) && (
+          <Chip
+            label="Réinitialiser"
+            onDelete={() => { setFilter('year', ''); setFilter('carrier', '') }}
+            size="small"
+            sx={{ bgcolor: alpha(theme.palette.error.main, 0.08), color: 'error.main', fontWeight: 600 }}
+          />
+        )}
+      </Box>
+
+      {/* ── KPI widgets ── */}
       <Grid container spacing={2} mb={3}>
         <Grid item xs={12} sm={6} md={3}>
-          <AppWidgetSummary
-            title="Total vols"
-            total={totalVols}
-            percent={pctChange(byYear.map(d => d.total))}
-            color="primary"
-            icon={<FlightIcon />}
-            chart={{ categories: kpiYears.map(String), series: byYear.map(d => d.total) }}
-          />
+          <AppWidgetSummary title="Total vols" total={totalVols}
+            percent={pctChange(byYear.map(d => d.total))} color="primary" icon={<FlightIcon />}
+            chart={{ categories: kpiYears.map(String), series: byYear.map(d => d.total) }} />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <AppWidgetSummary
-            title="Taux de retard moyen"
-            total={avgRate}
-            percent={pctChange(byYear.map(d => d.rate))}
-            color="error"
-            icon={<WarningAmberIcon />}
-            chart={{ categories: kpiYears.map(String), series: byYear.map(d => d.rate) }}
-          />
+          <AppWidgetSummary title="Taux de retard moyen" total={avgRate}
+            percent={pctChange(byYear.map(d => d.rate))} color="error" icon={<WarningAmberIcon />}
+            chart={{ categories: kpiYears.map(String), series: byYear.map(d => d.rate) }} />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <AppWidgetSummary
-            title="Retard moyen (min)"
-            total={avgDelay}
-            percent={pctChange(byYear.map(d => d.delay))}
-            color="warning"
-            icon={<AccessTimeIcon />}
-            chart={{ categories: kpiYears.map(String), series: byYear.map(d => d.delay) }}
-          />
+          <AppWidgetSummary title="Retard moyen (min)" total={avgDelay}
+            percent={pctChange(byYear.map(d => d.delay))} color="warning" icon={<AccessTimeIcon />}
+            chart={{ categories: kpiYears.map(String), series: byYear.map(d => d.delay) }} />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <AppWidgetSummary
-            title="Compagnies"
-            total={nbCarriers}
-            percent={0}
-            color="success"
-            icon={<AirlinesIcon />}
-            chart={{ categories: kpiYears.map(String), series: byYear.map(() => nbCarriers) }}
-          />
+          <AppWidgetSummary title="Compagnies" total={nbCarriers}
+            percent={0} color="success" icon={<AirlinesIcon />}
+            chart={{ categories: kpiYears.map(String), series: byYear.map(() => nbCarriers) }} />
         </Grid>
       </Grid>
 
+      {/* ── Charts ── */}
       <Grid container spacing={2}>
-        {/* Taux de retard par compagnie */}
+
+        {/* Bar chart taux retard — barres dégradées */}
         <Grid item xs={12} md={6}>
           <ChartCard title="Taux de retard par compagnie (%)">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={byCarrier} layout="vertical" margin={{ left: 120, right: 16, top: 8, bottom: 8 }}>
+              <BarChart data={byCarrier} layout="vertical" margin={{ left: 120, right: 20, top: 8, bottom: 8 }}>
+                <defs>
+                  <linearGradient id="gradRate" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%"   stopColor="#00A76F" stopOpacity={0.7} />
+                    <stop offset="100%" stopColor="#00A76F" stopOpacity={1} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid horizontal={false} strokeDasharray={cs.grid.strokeDasharray} stroke={cs.grid.stroke} />
                 <XAxis type="number" {...cs.axis} />
                 <YAxis type="category" dataKey="carrier_name" {...cs.axis} width={120} />
-                <Tooltip {...cs.tooltip} formatter={(v) => [`${v}%`, 'Taux retard']} />
-                <Bar dataKey="delay_rate_pct" fill={cs.colors[0]} name="Taux retard (%)" radius={[0, 4, 4, 0]} />
+                <Tooltip content={<CustomTooltip unit="%" />} />
+                <Bar dataKey="delay_rate_pct" fill="url(#gradRate)" name="Taux retard" radius={[0, 6, 6, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
         </Grid>
 
-        {/* Retard moyen à l'arrivée par mois */}
+        {/* Line chart retard par mois */}
         <Grid item xs={12} md={6}>
           <ChartCard title="Retard moyen à l'arrivée par mois (min)">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={byMonth} margin={{ left: 0, right: 16, top: 8, bottom: 8 }}>
+              <LineChart data={byMonth} margin={{ left: 0, right: 20, top: 8, bottom: 8 }}>
+                <defs>
+                  <linearGradient id="gradLine" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%"   stopColor="#FFAB00" />
+                    <stop offset="100%" stopColor="#FF5630" />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray={cs.grid.strokeDasharray} stroke={cs.grid.stroke} vertical={false} />
                 <XAxis dataKey="month" {...cs.axis} />
                 <YAxis {...cs.axis} />
-                <Tooltip {...cs.tooltip} formatter={(v) => [`${v} min`, 'Retard moy.']} />
+                <Tooltip content={<CustomTooltip unit=" min" />} />
                 <Line
-                  type="monotone"
-                  dataKey="avg_delay"
-                  stroke={cs.colors[3]}
-                  strokeWidth={2.5}
-                  strokeLinecap="round"
-                  dot={{ r: 3, fill: cs.colors[3], strokeWidth: 0 }}
-                  activeDot={{ r: 5 }}
-                  name="Retard moy. (min)"
+                  type="monotone" dataKey="avg_delay" name="Retard moy."
+                  stroke="url(#gradLine)" strokeWidth={3} strokeLinecap="round"
+                  dot={{ r: 4, fill: '#FF5630', strokeWidth: 0 }}
+                  activeDot={{ r: 6, fill: '#FF5630' }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </ChartCard>
         </Grid>
 
-        {/* Volume vs taux de retard */}
+        {/* Scatter volume vs retard */}
         <Grid item xs={12}>
           <ChartCard title="Volume de vols vs taux de retard" height={340}>
             <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart margin={{ top: 8, right: 30, bottom: 20, left: 10 }}>
+              <ScatterChart margin={{ top: 8, right: 30, bottom: 24, left: 10 }}>
+                <defs>
+                  <radialGradient id="gradDot" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%"   stopColor="#00A76F" stopOpacity={0.9} />
+                    <stop offset="100%" stopColor="#007867" stopOpacity={0.4} />
+                  </radialGradient>
+                </defs>
                 <CartesianGrid strokeDasharray={cs.grid.strokeDasharray} stroke={cs.grid.stroke} />
-                <XAxis dataKey="total_flights"  name="Total vols"      {...cs.axis} label={{ value: 'Total vols', position: 'insideBottom', offset: -10, fontSize: 11 }} />
-                <YAxis dataKey="delay_rate_pct" name="Taux retard (%)" {...cs.axis} label={{ value: 'Taux retard (%)', angle: -90, position: 'insideLeft', fontSize: 11 }} />
+                <XAxis dataKey="total_flights"  name="Total vols"      {...cs.axis}
+                  label={{ value: 'Total vols', position: 'insideBottom', offset: -14, fontSize: 11, fill: theme.palette.text.disabled }} />
+                <YAxis dataKey="delay_rate_pct" name="Taux retard (%)" {...cs.axis}
+                  label={{ value: 'Taux retard (%)', angle: -90, position: 'insideLeft', fontSize: 11, fill: theme.palette.text.disabled }} />
                 <ZAxis dataKey="delayed_flights" range={[60, 600]} name="Vols retardés" />
                 <Tooltip
-                  {...cs.tooltip}
                   cursor={{ strokeDasharray: '3 3' }}
                   content={({ payload }) => {
                     if (!payload?.length) return null
                     const d = payload[0].payload as typeof byCarrier[0]
                     return (
-                      <Box sx={{ bgcolor: 'white', p: 1.5, border: '1px solid #DFE3E8', borderRadius: 1, boxShadow: '0 8px 16px rgba(0,0,0,0.12)' }}>
-                        <Typography variant="caption" fontWeight={600}>{d.carrier_name}</Typography><br />
+                      <Box sx={{ bgcolor: 'white', p: 1.5, border: '1px solid #DFE3E8', borderRadius: 2, boxShadow: '0 8px 16px rgba(0,0,0,0.12)' }}>
+                        <Typography variant="caption" fontWeight={700}>{d.carrier_name}</Typography><br />
                         <Typography variant="caption">Vols : {d.total_flights?.toLocaleString()}</Typography><br />
                         <Typography variant="caption">Taux retard : {d.delay_rate_pct}%</Typography>
                       </Box>
                     )
                   }}
                 />
-                <Scatter data={byCarrier} fill={cs.colors[0]} opacity={0.75} />
+                <Scatter data={byCarrier} fill="url(#gradDot)" opacity={0.85} />
               </ScatterChart>
             </ResponsiveContainer>
           </ChartCard>
         </Grid>
 
-        {/* Tableau */}
+        {/* DataGrid */}
         <Grid item xs={12}>
           <ChartCard title="Classement des compagnies" height={400}>
             <DataGrid
@@ -274,7 +365,11 @@ export default function Airlines() {
               pageSizeOptions={[10, 25]}
               initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
               disableRowSelectionOnClick
-              sx={{ border: 'none', fontSize: 13 }}
+              sx={{
+                border: 'none', fontSize: 13,
+                '& .MuiDataGrid-row:hover': { bgcolor: alpha('#00A76F', 0.04) },
+                '& .MuiDataGrid-columnHeaders': { bgcolor: '#f4f6f8', borderRadius: 1 },
+              }}
             />
           </ChartCard>
         </Grid>
