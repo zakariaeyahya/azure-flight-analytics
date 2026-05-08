@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box, Drawer, AppBar, Toolbar, Typography, List, ListItemButton,
-  ListItemIcon, ListItemText, Divider, Chip, IconButton, useMediaQuery, useTheme,
-  Tooltip,
+  ListItemIcon, ListItemText, Divider, Chip, IconButton, useMediaQuery, useTheme, Tooltip,
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
@@ -125,7 +124,7 @@ export default function Layout() {
           sx={{
             width: drawerWidth,
             flexShrink: 0,
-            transition: 'width 0.2s',
+            transition: theme.transitions.create('width', { duration: 200 }),
             '& .MuiDrawer-paper': {
               width: drawerWidth,
               bgcolor: '#0d1b2a',
@@ -133,7 +132,7 @@ export default function Layout() {
               borderRight: 'none',
               pt: 8,
               overflowX: 'hidden',
-              transition: 'width 0.2s',
+              transition: theme.transitions.create('width', { duration: 200 }),
             },
           }}
         >
@@ -147,8 +146,7 @@ export default function Layout() {
           flexGrow: 1,
           p: 3,
           pt: 11,
-          ml: isMobile ? 0 : `${drawerWidth}px`,
-          transition: 'margin-left 0.2s',
+          minWidth: 0,
         }}
       >
         <Outlet />
