@@ -14,7 +14,7 @@ Azure Data Lake Gen2 (/raw/)
         │
         ▼
 ┌───────────────────────────────────────┐
-│           DATABRICKS (Serverless)     │
+│           DATABRICKS                  │
 │                                       │
 │  Bronze → Silver → Gold               │
 │  (Delta Lake à chaque couche)         │
@@ -29,7 +29,7 @@ Azure Data Lake Gen2 (/raw/)
 | Couche | Contenu | Format |
 |--------|---------|--------|
 | **Bronze** | CSV bruts copiés sans modification | Delta Lake |
-| **Silver** | Données nettoyées, typées, enrichies, partitionnées | Delta Lake |
+| **Silver** | Données nettoyées, typées, enrichies, partitionnées par Year/Month | Delta Lake |
 | **Gold** | KPIs agrégés prêts pour Power BI | Delta Lake |
 
 ---
@@ -74,14 +74,16 @@ azure_projet/
 
 ---
 
-## Tables Gold disponibles pour Power BI
+## Tables Gold — Résultats réels
 
-| Table | Description | Rows (approx.) |
-|-------|-------------|---------------|
-| `gold/carrier_performance` | Retards et ponctualité par compagnie / année | ~200 |
-| `gold/airport_performance` | Retards par aéroport d'origine / année | ~3 000 |
-| `gold/monthly_trends` | Tendances mensuelles (retards, annulations) | ~72 |
-| `gold/delay_causes` | Causes de retard par compagnie (météo, NAS...) | ~200 |
+> Pipeline exécuté le 2026-05-08 avec succès.
+
+| Table | Description | Lignes |
+|-------|-------------|-------:|
+| `gold/carrier_performance` | Ponctualité par compagnie / année | 117 |
+| `gold/airport_performance` | Retards par aéroport d'origine / année | 1 392 |
+| `gold/monthly_trends` | Tendances mensuelles (retards, annulations) | 64 |
+| `gold/delay_causes` | Causes de retard par compagnie (météo, NAS...) | 117 |
 | `gold/top_routes` | Top 200 routes les plus fréquentées | 200 |
 
 ---
@@ -117,15 +119,13 @@ az resource list --resource-group "rg-flight-analytics" --output table
 
 ### 4. Choisir le compute
 
-Dans chaque notebook, cliquez sur le menu **Connect** en haut à droite et choisissez votre compute :
+Dans chaque notebook, cliquez sur **Connect** en haut à droite :
 
 | Option | Description |
 |--------|-------------|
 | **Existing cluster** | Cluster déjà démarré — recommandé si vous en avez un actif |
-| **New cluster** | Crée un cluster dédié — à configurer (type de nœud, taille) |
+| **New cluster** | Crée un cluster dédié — Runtime 14.3 LTS, Standard_DS3_v2 |
 | **Job cluster** | Cluster éphémère créé puis supprimé à la fin du job |
-
-> Ne pas sélectionner **Serverless**.
 
 ### 5. Exécuter dans l'ordre
 
@@ -162,10 +162,21 @@ STORAGE_KEY = os.getenv("STORAGE_KEY")
 ## Connexion Power BI
 
 1. Ouvrir Power BI Desktop
-2. **Get Data** → **Azure Databricks**
-3. Server : `adb-7405606941703443.3.azuredatabricks.net`
-4. Se connecter avec le compte Azure
-5. Sélectionner les tables `gold/*`
+2. **Obtenir des données** → **Azure Databricks**
+3. Server Hostname : `adb-7405606941703443.3.azuredatabricks.net`
+4. HTTP Path : `Compute → votre cluster → Advanced Options → JDBC/ODBC → HTTP Path`
+5. Authentification : **Azure Active Directory**
+6. Sélectionner les 5 tables `gold/*`
+
+### Visuels suggérés
+
+| Visuel | Table | Axes |
+|--------|-------|------|
+| Barres — ponctualité par compagnie | `carrier_performance` | X: carrier_name / Y: delay_rate_pct |
+| Carte USA — retards par état | `airport_performance` | Location: origin_state / Valeur: avg_arr_delay_min |
+| Courbe — évolution mensuelle | `monthly_trends` | X: Month / Y: avg_arr_delay_min / Légende: Year |
+| Barres empilées — causes de retard | `delay_causes` | X: carrier_name / Y: avg_carrier + avg_weather + avg_nas |
+| Table — top routes | `top_routes` | route, total_flights, delay_rate_pct |
 
 ---
 
