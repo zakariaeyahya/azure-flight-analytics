@@ -173,3 +173,17 @@ for t in gold_tables:
     log.info("  gold/%-25s → %s lignes", t, f"{count:,}")
 log.info("=" * 55)
 log.info("Gold terminé avec succès — tables prêtes pour Power BI")
+
+# COMMAND ----------
+# MAGIC %md
+# MAGIC ## Export CSV nommés pour le dashboard web (accès direct ADLS)
+
+# COMMAND ----------
+
+for t in gold_tables:
+    df = spark.read.format("delta").load(f"{BASE}/gold/{t}")
+    csv_content = df.toPandas().to_csv(index=False)
+    dbutils.fs.put(f"{BASE}/gold_csv/{t}.csv", csv_content, overwrite=True)
+    log.info("CSV exporté | gold_csv/%s.csv | lignes=%s", t, f"{df.count():,}")
+
+log.info("Export CSV terminé — fichiers disponibles dans gold_csv/")
